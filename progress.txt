@@ -24,3 +24,6 @@ Project Date: 2026-01-18 Status: Project Complete (v1.0 CLI). Mistakes/Lessons L
 UX: Realized that printing too much "raw text" makes it hard to see the status. Added visual separators (===).
 CLI Design: Used action="store_true" for the test flag. This is a standard pattern for CLI tools (defaults to testing, skips only if asked).
 Final Thought: The "Self-Healing" logic is currently one-shot. In a v2.0, we could make it a while loop that tries up to 3 times before giving up.
+Project Date: 2026-01-18 Status: Repository structure finalized. Mistakes/Lessons Learned:
+Packaging Pitfall: Initially kept files in the root. Moving to src/ layout makes the project "pip-installable" and follows PEP 517 standards.
+Import Errors: Moving files into a subfolder usually breaks imports. Switching to relative imports (from .core ...) fixed the internal linkage.
