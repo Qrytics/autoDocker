@@ -2,6 +2,7 @@
 import argparse
 import os
 import sys
+import colorama
 from rich.console import Console
 from rich.panel import Panel
 from rich.status import Status
@@ -118,6 +119,7 @@ def run_auto_docker(source, model_name, tag, skip_test):
 
 def cli_entry():
     """CLI entry point with enhanced argument parsing."""
+    colorama.init()
     parser = argparse.ArgumentParser(
         prog="autodocker",
         description="[bold cyan]Auto-Docker[/bold cyan]: Intelligent Containerization",
