@@ -107,6 +107,31 @@ class LLMArchitect:
         """Removes markdown backticks if the LLM ignores instructions."""
         return text.replace("```dockerfile", "").replace("```", "").strip()
 
+    def heal_dockerfile(self, project_context, faulty_dockerfile, error_log):
+        """Asks the LLM to fix a Dockerfile that failed to build."""
+        system_prompt = (
+            "You are a Senior DevOps Engineer. A Dockerfile you generated failed to build.\n"
+            "Analyze the error log and the original Dockerfile, then provide a FIXED version.\n"
+            "STRICT: Return ONLY the fixed Dockerfile content."
+        )
+
+        user_prompt = (
+            f"PROJECT CONTEXT:\n{project_context}\n\n"
+            f"FAULTY DOCKERFILE:\n{faulty_dockerfile}\n\n"
+            f"ERROR LOG:\n{error_log}\n\n"
+            "Please fix the error (e.g., missing dependencies, wrong paths, or incorrect base image)."
+        )
+
+        response = completion(
+            model=self.model,
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt}
+            ],
+            temperature=0.1 
+        )
+        return self._clean_llm_output(response.choices[0].message.content)
+
 ## Feature 2 / Task 1
 class DockerBuilder:
     def __init__(self):
