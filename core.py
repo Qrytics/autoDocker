@@ -4,6 +4,7 @@ import tempfile
 import shutil
 import os
 import docker
+from git import Repo
 from pathlib import Path
 from litellm import completion
 
@@ -67,6 +68,17 @@ class WorkspaceManager:
         """Deletes the temporary workspace."""
         if self.temp_dir and os.path.exists(self.temp_dir):
             shutil.rmtree(self.temp_dir)
+
+    def setup_from_github(self, repo_url):
+        """Clones a GitHub repo to a temp directory."""
+        self.temp_dir = tempfile.mkdtemp(prefix="auto_docker_git_")
+        print(f"Cloning {repo_url}...")
+        try:
+            Repo.clone_from(repo_url, self.temp_dir)
+            self._build_file_map()
+            return self.temp_dir
+        except Exception as e:
+            raise Exception(f"Failed to clone repository: {e}")
 
 ## Feature 1 / Task 2
 class LLMArchitect:
