@@ -1,0 +1,16 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "autodocker"
+version = "0.1.0"
+description = "LLM-powered automatic containerization tool"
+dependencies = [
+    "litellm",
+    "docker",
+    "gitpython",
+]
+
+[project.scripts]
+autodocker = "autodocker.main:cli_entry"
