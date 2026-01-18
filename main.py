@@ -34,20 +34,35 @@ def run_auto_docker(zip_path, model_name="gemini/gemini-pro"):
         workspace.cleanup()
         return None
     
-    # 5. Build the Image
+    # 5. Build the Image (Updated with Healing)
     try:
         builder = DockerBuilder()
         image = builder.build_image(temp_path, tag="auto-docker-test:latest")
         print(f"Image built successfully! ID: {image.id}")
-        
-        # 6. Cleanup (Optional: keep if you want to inspect files)
-        # workspace.cleanup() 
-        
         return image
     except Exception as e:
-        print(f"Build process failed: {e}")
-        # Note: We'll use this error in Feature 3 for self-healing
-        return None
+        print(f"Initial build failed. Attempting to self-heal...")
+        
+        # --- SELF-HEALING START ---
+        error_log = str(e)
+        # Re-read the faulty dockerfile to send to LLM
+        with open(dockerfile_path, "r") as f:
+            faulty_content = f.read()
+            
+        fixed_content = architect.heal_dockerfile(context, faulty_content, error_log)
+        
+        print("Applying fix and retrying build...")
+        with open(dockerfile_path, "w") as f:
+            f.write(fixed_content)
+            
+        try:
+            image = builder.build_image(temp_path, tag="auto-docker-test:latest")
+            print(f"Healed! Image built successfully! ID: {image.id}")
+            return image
+        except Exception as retry_error:
+            print(f"Healing failed. Manual intervention required: {retry_error}")
+            return None
+        # --- SELF-HEALING START ---
 
 if __name__ == "__main__":
     # Example usage (ensure you have your API key set in environment variables)
