@@ -1,3 +1,11 @@
 Project Started: 2026-01-17 
 Status: Initializing Feature 1. 
 Mistakes/Lessons Learned: > * (Empty)
+Project Started: 2026-01-17 Status: Task 1 Complete. Moving to Task 2. Mistakes/Lessons Learned: > * Challenge: Simply listing files isn't enough for the LLM to know versions (e.g., Python 3.9 vs 3.11).
+Fix: Added a manifest reader to get_context_for_llm that extracts the first 1000 characters of files like requirements.txt or package.json.
+Risk: Large zip files could crash memory; used tempfile to keep the disk clean.
+Project Started: 2026-01-17 Status: Task 2 Complete. Integrating LiteLLM. Mistakes/Lessons Learned:
+Improvement: Switched from vendor-specific SDKs to litellm. This makes the project much more portable for users.
+Risk: LLMs often wrap code in triple backticks (```) even when told not to.
+Fix: Added _clean_llm_output to sanitize the string before saving it to a file.
+Prompt Engineering: Discovered that the LLM needs to be explicitly told to "Copy requirements first" to utilize Docker's layer caching effectively.
