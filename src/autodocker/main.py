@@ -127,7 +127,8 @@ def cli_entry():
         prog="autodocker",
         description="[bold cyan]Auto-Docker[/bold cyan]: Intelligent Containerization",
         epilog="Example: autodocker ./my_project.zip --tag web-app:v1",
-        formatter_class=argparse.RawDescriptionHelpFormatter
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        add_help=False
     )
     
     # Positional argument
@@ -143,6 +144,21 @@ def cli_entry():
                       help="Skip runtime stability check")
 
     args = parser.parse_args()
+
+    # Custom help display with Rich
+    if args.help:
+        console.print("\n[bold cyan]Auto-Docker[/bold cyan]: Intelligent Containerization\n")
+        console.print("[yellow]Usage:[/yellow] autodocker [OPTIONS] source\n")
+        console.print("[yellow]Positional Arguments:[/yellow]")
+        console.print("  source          Path to a .zip file or a public GitHub URL\n")
+        console.print("[yellow]Configuration Options:[/yellow]")
+        console.print("  --model MODEL   LiteLLM model (default: gemini/gemini-pro)")
+        console.print("  --tag TAG       Docker image tag (default: auto-docker-test:latest)")
+        console.print("  --skip-test     Skip runtime stability check")
+        console.print("  -h, --help      Show this help message and exit\n")
+        console.print("[yellow]Example:[/yellow]")
+        console.print("  autodocker ./my_project.zip --tag web-app:v1\n")
+        sys.exit(0)
 
     # Welcome header
     console.print(Panel.fit(
