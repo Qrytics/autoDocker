@@ -31,3 +31,7 @@ Project Date: 2026-01-18 Status: Successfully converted to a pip-installable pac
 Namespace issues: Initially forgot that pip needs to know exactly where the "entry point" is. The [project.scripts] section in pyproject.toml is the bridge between the code and the OS.
 Dependency Management: Realized that if gitpython isn't in the dependencies list, the GitHub URL feature will crash for other users.
 Editable Mode: Using -e during development is a life-saver; otherwise, you have to re-install every time you fix a typo.
+Project Date: 2026-01-18 Status: UX Overhaul. Mistakes/Lessons Learned:
+CLI Clarity: Discovered that positional arguments are often confusing if not described well. Added examples to the epilog.
+User Feedback: Realized that during the 15-30 seconds the LLM takes to generate code, the user might think the app is frozen. Added rich.status spinners to indicate active processing.
+Aesthetics: Added Rich to make error messages appear in bold red, making them much harder to miss.
