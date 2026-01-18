@@ -35,11 +35,12 @@ def run_auto_docker(zip_path, model_name="gemini/gemini-pro"):
         return None
     
     # 5. Build the Image (Updated with Healing)
+    image_tag = "auto-docker-test:latest"
     try:
         builder = DockerBuilder()
-        image = builder.build_image(temp_path, tag="auto-docker-test:latest")
+        image = builder.build_image(temp_path, tag=image_tag)
         print(f"Image built successfully! ID: {image.id}")
-        return image
+        
     except Exception as e:
         print(f"Initial build failed. Attempting to self-heal...")
         
@@ -56,13 +57,24 @@ def run_auto_docker(zip_path, model_name="gemini/gemini-pro"):
             f.write(fixed_content)
             
         try:
-            image = builder.build_image(temp_path, tag="auto-docker-test:latest")
+            image = builder.build_image(temp_path, tag=image_tag)
             print(f"Healed! Image built successfully! ID: {image.id}")
-            return image
         except Exception as retry_error:
             print(f"Healing failed. Manual intervention required: {retry_error}")
             return None
-        # --- SELF-HEALING START ---
+        # --- SELF-HEALING END ---
+    
+    # 6. Runtime Validation
+    try:
+        print("Running runtime validation tests...")
+        success = builder.test_run(image_tag)
+        if success:
+            print("All checks passed! Your image is ready for production.")
+            return image
+    except Exception as runtime_err:
+        print(f"Image builds, but fails to run: {runtime_err}")
+        # Note: We could trigger a second 'Heal' loop here if we wanted!
+        return None
 
 if __name__ == "__main__":
     # Example usage (ensure you have your API key set in environment variables)
