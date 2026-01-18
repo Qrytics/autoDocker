@@ -35,3 +35,7 @@ Project Date: 2026-01-18 Status: UX Overhaul. Mistakes/Lessons Learned:
 CLI Clarity: Discovered that positional arguments are often confusing if not described well. Added examples to the epilog.
 User Feedback: Realized that during the 15-30 seconds the LLM takes to generate code, the user might think the app is frozen. Added rich.status spinners to indicate active processing.
 Aesthetics: Added Rich to make error messages appear in bold red, making them much harder to miss.
+Project Date: 2026-01-18 Status: UI/UX Polish Complete. Mistakes/Lessons Learned:
+Terminal Compatibility: Discovered that Windows PowerShell doesn't always render Rich tags correctly out of the box.
+Fix: Recommended colorama for better ANSI support on Windows.
+User Feedback: The Syntax highlighting in the console is a "wow" feature—it allows the user to audit the LLM's work without opening a separate text editor.
