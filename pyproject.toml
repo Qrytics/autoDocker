@@ -10,6 +10,7 @@ dependencies = [
     "litellm",
     "docker",
     "gitpython",
+    "rich",
 ]
 
 [project.scripts]
