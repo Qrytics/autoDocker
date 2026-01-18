@@ -2,7 +2,7 @@
 import argparse
 import os
 import sys
-from core import WorkspaceManager, LLMArchitect, DockerBuilder
+from .core import WorkspaceManager, LLMArchitect, DockerBuilder
 
 def cli_entry():
     parser = argparse.ArgumentParser(description="Auto-Docker CLI")
