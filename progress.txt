@@ -20,3 +20,7 @@ Challenge: A container might "start" but then crash 2 seconds later because of a
 Fix: Added a time.sleep(10) delay in the test run. If it survives 10 seconds, we assume the entry point is correct.
 Risk: Leaving "Zombie Containers" running if the script crashes.
 Fix: Used a finally block in test_run to ensure container.stop() and container.remove() are always called.
+Project Date: 2026-01-18 Status: Project Complete (v1.0 CLI). Mistakes/Lessons Learned:
+UX: Realized that printing too much "raw text" makes it hard to see the status. Added visual separators (===).
+CLI Design: Used action="store_true" for the test flag. This is a standard pattern for CLI tools (defaults to testing, skips only if asked).
+Final Thought: The "Self-Healing" logic is currently one-shot. In a v2.0, we could make it a while loop that tries up to 3 times before giving up.
