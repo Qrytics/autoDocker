@@ -47,7 +47,7 @@ def run_auto_docker(source, model_name, tag, skip_test):
             
             # Display the Dockerfile with syntax highlighting
             console.print("\n[bold cyan]Generated Dockerfile:[/bold cyan]")
-            syntax = Syntax(dockerfile_content, "dockerfile", theme="monokai", line_numbers=True)
+            syntax = Syntax(dockerfile_content, "dockerfile", theme="ansi_dark", line_numbers=True)
             console.print(syntax)
             
         except Exception as e:
@@ -103,13 +103,16 @@ def run_auto_docker(source, model_name, tag, skip_test):
         else:
             console.print("[dim]Runtime validation skipped (--skip-test flag)[/dim]")
     
+    workspace_name = os.path.basename(temp_path)
+    
     # Success summary
     console.print("\n" + "="*60)
     console.print(Panel.fit(
         f"[bold green]Project Successfully Containerized![/bold green]\n\n"
         f"[cyan]Docker Image:[/cyan] {tag}\n"
-        f"[cyan]Dockerfile:[/cyan] {temp_path}/Dockerfile\n"
-        f"[cyan]Workspace:[/cyan] {temp_path}",
+        f"[cyan]Dockerfile:[/cyan] {workspace_name}/Dockerfile\n"
+        f"[cyan]Workspace:[/cyan] {workspace_name}\n"
+        f"[dim](Full path: {temp_path})[/dim]",
         border_style="green",
         title="Success"
     ))
