@@ -11,6 +11,7 @@ dependencies = [
     "docker",
     "gitpython",
     "rich",
+    "colorama",
 ]
 
 [project.scripts]
