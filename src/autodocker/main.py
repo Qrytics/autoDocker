@@ -6,7 +6,7 @@ from rich.console import Console
 from rich.panel import Panel
 from rich.status import Status
 from rich.syntax import Syntax
-from core import WorkspaceManager, LLMArchitect, DockerBuilder
+from .core import WorkspaceManager, LLMArchitect, DockerBuilder
 
 console = Console()
 
