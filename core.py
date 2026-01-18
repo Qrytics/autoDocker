@@ -163,3 +163,31 @@ class DockerBuilder:
             # This log is crucial for our 'Self-Healing' feature later
             error_log = "".join([str(log) for log in e.build_log])
             raise Exception(f"Build Error: {error_log}")
+
+    def test_run(self, image_tag, timeout=10):
+        """Starts the container briefly to ensure it doesn't crash on boot."""
+        print(f"Testing container stability for {timeout} seconds...")
+        container = None
+        try:
+            # Run the container in detached mode
+            container = self.client.containers.run(image_tag, detach=True)
+            
+            # Wait to see if it stays 'running'
+            import time
+            time.sleep(timeout)
+            
+            container.reload() # Refresh container status
+            if container.status == "running":
+                print("Container is stable and running.")
+                return True
+            else:
+                logs = container.logs().decode("utf-8")
+                raise Exception(f"Container stopped with status {container.status}. Logs: {logs}")
+                
+        except Exception as e:
+            print(f"Runtime Validation Failed: {e}")
+            raise e
+        finally:
+            if container:
+                container.stop()
+                container.remove()
