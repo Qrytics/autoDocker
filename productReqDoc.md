@@ -1,26 +1,31 @@
-Vision: A zero-config CLI tool that transforms any application source code (ZIP) into a production-hardened, multi-stage, distroless Docker image using LLM-driven intent recognition.
+**Vision** A zero-config CLI tool that transforms any application source code (ZIP) into a production-hardened, multi-stage, distroless Docker image using LLM-driven intent recognition.
 
 ## 1. Core Objectives
-Zero-Knowledge Requirement: The user should not need to know how to write a Dockerfile.
-
-Security by Default: Every image must use Alpine or Distroless bases.
-
-Optimization by Default: Every build must use multi-stage layering.
-
-Self-Healing: If a build fails, the tool should attempt to fix the Dockerfile using the error logs.
+- **Zero-Knowledge Requirement:** The user should not need to know how to write a Dockerfile.
+- **Security by Default** Every image must use Alpine or Distroless bases.
+- **Optimization by Default:** Every build must use multi-stage layering.
+- **Self-Healing:** If a build fails, the tool should attempt to fix the Dockerfile using the error logs.
 
 ## 2. Target Features (The "Ralph" Loop Roadmap)
-Feature 1: The Analyzer & Architect. Unpacking the ZIP, scanning the file tree, and using an LLM to generate the optimized Dockerfile.
-
-Feature 2: The Builder. Interfacing with the Docker Engine API to execute the build.
-
-Feature 3: The Validator. Running the container locally to ensure it doesn't "crash-loop" and checking image size/security.
+- **Feature 1:** The Analyzer & Architect. Unpacking the ZIP, scanning the file tree, and using an LLM to generate the optimized Dockerfile.
+- **Feature 2:** The Builder. Interfacing with the Docker Engine API to execute the build.
+- **Feature 3:** The Validator. Running the container locally to ensure it doesn't "crash-loop" and checking image size/security.
 
 ## 3. Technical Stack
-Language: Python 3.10+
+- **Language:** Python 3.10+
+- **Orchestration:** Docker SDK for Python.
+- **Intelligence:** OpenAI / Gemini API (for Dockerfile generation).
+- **Processing:** zipfile and tempfile for ephemeral workspace management.
 
-Orchestration: Docker SDK for Python.
+## Task Mapping
+### Feature 1: The Analyzer & Architect
+**Goal:** Take a ZIP, see what's inside, and get a Dockerfile from the LLM.
 
-Intelligence: OpenAI / Gemini API (for Dockerfile generation).
+**Task 1:** The Workspace Manager
+We need a robust way to handle the uploaded ZIP, extract it to a temporary location, and generate a "File Tree String" that we can send to the LLM.
 
-Processing: zipfile and tempfile for ephemeral workspace management.
+**Requirements for Task 1:**
+
+- Function to accept a .zip path.
+- Unzip to a unique temporary directory.
+- Recursively list files (ignoring .git, __pycache__, etc.) to create a context map for the LLM.
