@@ -4,6 +4,20 @@ import os
 import sys
 from core import WorkspaceManager, LLMArchitect, DockerBuilder
 
+def cli_entry():
+    parser = argparse.ArgumentParser(description="Auto-Docker CLI")
+    parser.add_argument("source", help="Path to ZIP file OR GitHub URL")
+    # ... other args ...
+    args = parser.parse_args()
+    
+    # Logic to detect if source is a URL or a file
+    if args.source.startswith("http"):
+        # Handle GitHub logic
+        pass 
+    else:
+        # Handle ZIP logic
+        pass
+
 def run_auto_docker(zip_path, model_name, tag, skip_test):
     print(f"\n{'='*50}")
     print(f"AUTO-DOCKER: {os.path.basename(zip_path)}")
