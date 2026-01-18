@@ -27,3 +27,7 @@ Final Thought: The "Self-Healing" logic is currently one-shot. In a v2.0, we cou
 Project Date: 2026-01-18 Status: Repository structure finalized. Mistakes/Lessons Learned:
 Packaging Pitfall: Initially kept files in the root. Moving to src/ layout makes the project "pip-installable" and follows PEP 517 standards.
 Import Errors: Moving files into a subfolder usually breaks imports. Switching to relative imports (from .core ...) fixed the internal linkage.
+Project Date: 2026-01-18 Status: Successfully converted to a pip-installable package. Mistakes/Lessons Learned:
+Namespace issues: Initially forgot that pip needs to know exactly where the "entry point" is. The [project.scripts] section in pyproject.toml is the bridge between the code and the OS.
+Dependency Management: Realized that if gitpython isn't in the dependencies list, the GitHub URL feature will crash for other users.
+Editable Mode: Using -e during development is a life-saver; otherwise, you have to re-install every time you fix a typo.
