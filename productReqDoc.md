@@ -1,4 +1,4 @@
-# Vision: A zero-config CLI tool that transforms any application source code (ZIP) into a production-hardened, multi-stage, distroless Docker image using LLM-driven intent recognition.
+Vision: A zero-config CLI tool that transforms any application source code (ZIP) into a production-hardened, multi-stage, distroless Docker image using LLM-driven intent recognition.
 
 ## 1. Core Objectives
 Zero-Knowledge Requirement: The user should not need to know how to write a Dockerfile.
