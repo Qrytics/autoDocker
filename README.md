@@ -8,6 +8,11 @@ A python script that uses active API to automatically containerize project files
 4. Corrects its own errors (Self-Healer)
 5. Performs Quality Assurance (Validator)
 
+## How to use your new tool:
+**Install dependencies:** pip install litellm docker
+**Set your API Key:** export GEMINI_API_KEY='your_key_here'
+**Run it:** python main.py my_code.zip --tag my-web-app:v1
+
 ### Basic usage
 python main.py my_project.zip
 ### Custom tag
