@@ -13,3 +13,5 @@ Project Started: 2026-01-17 Status: Feature 1 (Architect) Complete. Mistakes/Les
 Architecture Decision: Split code into core.py and main.py early to prevent "Spaghetti Code."
 Observation: If the ZIP has a nested folder (e.g., zipping a folder vs. zipping files), the WorkspaceManager might need to "find the root" where requirements.txt actually lives.
 To-Do for later: Add a "Root Finder" logic if the LLM gets confused by nested directories.
+Project Date: 2026-01-18 Status: Feature 2 Finalized. Preparing for Feature 3. Mistakes/Lessons Learned: > * Logic Refactor: Realized that nesting everything in one big try block makes it hard to pinpoint where the failure happened.
+Improvement: Split the script into two distinct phases (Phase 1: Architect, Phase 2: Builder). This allows for a "checkpoint" where we have the Dockerfile written before we attempt the build.
