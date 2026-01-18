@@ -1,14 +1,22 @@
 # main.py
+import argparse
 import os
+import sys
 from core import WorkspaceManager, LLMArchitect, DockerBuilder
 
-def run_auto_docker(zip_path, model_name="gemini/gemini-pro"):
-    print(f"Starting Auto-Docker for: {zip_path}")
+def run_auto_docker(zip_path, model_name, tag, skip_test):
+    print(f"\n{'='*50}")
+    print(f"AUTO-DOCKER: {os.path.basename(zip_path)}")
+    print(f"{'='*50}\n")
+    
+    if not os.path.exists(zip_path):
+        print(f"Error: File '{zip_path}' not found.")
+        return None
     
     # 1. Setup Workspace
     workspace = WorkspaceManager(zip_path)
     temp_path = workspace.setup()
-    print(f"📂 Unpacked to temporary directory: {temp_path}")
+    print(f"Unpacked to temporary directory: {temp_path}")
     
     try:
         # 2. Extract Context
@@ -24,7 +32,7 @@ def run_auto_docker(zip_path, model_name="gemini/gemini-pro"):
         with open(dockerfile_path, "w") as f:
             f.write(dockerfile_content)
         
-        print("Success! Dockerfile generated and saved.")
+        print("Dockerfile generated and saved.")
         print("-" * 30)
         print(dockerfile_content)
         print("-" * 30)
@@ -34,11 +42,11 @@ def run_auto_docker(zip_path, model_name="gemini/gemini-pro"):
         workspace.cleanup()
         return None
     
-    # 5. Build the Image (Updated with Healing)
-    image_tag = "auto-docker-test:latest"
+    # 5. Build the Image (with Self-Healing)
+    builder = DockerBuilder()
     try:
-        builder = DockerBuilder()
-        image = builder.build_image(temp_path, tag=image_tag)
+        print(f"\nBuilding Docker image: {tag}")
+        image = builder.build_image(temp_path, tag=tag)
         print(f"Image built successfully! ID: {image.id}")
         
     except Exception as e:
@@ -57,30 +65,59 @@ def run_auto_docker(zip_path, model_name="gemini/gemini-pro"):
             f.write(fixed_content)
             
         try:
-            image = builder.build_image(temp_path, tag=image_tag)
+            image = builder.build_image(temp_path, tag=tag)
             print(f"Healed! Image built successfully! ID: {image.id}")
         except Exception as retry_error:
             print(f"Healing failed. Manual intervention required: {retry_error}")
+            print(f"Workspace preserved at: {temp_path}")
             return None
         # --- SELF-HEALING END ---
     
     # 6. Runtime Validation
-    try:
-        print("Running runtime validation tests...")
-        success = builder.test_run(image_tag)
-        if success:
-            print("All checks passed! Your image is ready for production.")
-            return image
-    except Exception as runtime_err:
-        print(f"Image builds, but fails to run: {runtime_err}")
-        # Note: We could trigger a second 'Heal' loop here if we wanted!
-        return None
+    if not skip_test:
+        try:
+            print("\nRunning runtime validation tests...")
+            success = builder.test_run(tag)
+            if success:
+                print("All checks passed! Your image is ready for production.")
+        except Exception as runtime_err:
+            print(f"Image builds, but fails to run: {runtime_err}")
+            print(f"Workspace preserved at: {temp_path}")
+            # Note: We could trigger a second 'Heal' loop here if we wanted!
+            return None
+    else:
+        print("\nRuntime validation skipped (--skip-test flag used)")
+    
+    print(f"\nProject successfully containerized!")
+    print(f"Docker Image: {tag}")
+    print(f"Dockerfile Location: {temp_path}/Dockerfile")
+    print(f"Workspace preserved at: {temp_path}")
+    
+    return image
 
 if __name__ == "__main__":
-    # Example usage (ensure you have your API key set in environment variables)
-    # os.environ["GEMINI_API_KEY"] = "your-key-here"
-    path = "my_project.zip" 
-    if os.path.exists(path):
-        run_auto_docker(path)
-    else:
-        print(f"File {path} not found. Please provide a valid zip.")
+    parser = argparse.ArgumentParser(
+        description="Auto-Docker: Intelligent Containerization",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+  python main.py my_project.zip
+  python main.py my_project.zip --tag myapp:v1.0
+  python main.py my_project.zip --model gemini/gemini-1.5-flash --skip-test
+        """
+    )
+    
+    parser.add_argument("zip", help="Path to the project ZIP file")
+    parser.add_argument("--model", default="gemini/gemini-pro", 
+                       help="LiteLLM model string (default: gemini/gemini-pro)")
+    parser.add_argument("--tag", default="auto-docker-test:latest", 
+                       help="Tag for the resulting Docker image (default: auto-docker-test:latest)")
+    parser.add_argument("--skip-test", action="store_true", 
+                       help="Skip the runtime stability test")
+    
+    args = parser.parse_args()
+    
+    result = run_auto_docker(args.zip, args.model, args.tag, args.skip_test)
+    
+    # Exit with appropriate code
+    sys.exit(0 if result else 1)
