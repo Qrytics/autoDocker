@@ -7,3 +7,12 @@ A python script that uses active API to automatically containerize project files
 3. Communicates with OS-level virtualization (DockerBuilder)
 4. Corrects its own errors (Self-Healer)
 5. Performs Quality Assurance (Validator)
+
+### Basic usage
+python main.py my_project.zip
+### Custom tag
+python main.py my_project.zip --tag myapp:v1.0
+### Different model + skip tests
+python main.py my_project.zip --model gemini/gemini-1.5-flash --skip-test
+### See help
+python main.py --help
