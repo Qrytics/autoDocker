@@ -3,6 +3,7 @@ import zipfile
 import tempfile
 import shutil
 import os
+import docker
 from pathlib import Path
 from litellm import completion
 
@@ -105,3 +106,35 @@ class LLMArchitect:
     def _clean_llm_output(self, text):
         """Removes markdown backticks if the LLM ignores instructions."""
         return text.replace("```dockerfile", "").replace("```", "").strip()
+
+## Feature 2 / Task 1
+class DockerBuilder:
+    def __init__(self):
+        try:
+            self.client = docker.from_env()
+        except Exception as e:
+            raise Exception("Docker is not running. Please start Docker Desktop.")
+
+    def build_image(self, path, tag="auto-docker-app:latest"):
+        """Builds a docker image from the provided directory path."""
+        print(f"Building image: {tag}...")
+        
+        try:
+            image, build_logs = self.client.images.build(
+                path=path,
+                tag=tag,
+                rm=True,      # Remove intermediate containers
+                forcerm=True  # Always remove intermediate containers
+            )
+            
+            # Print build logs to show progress
+            for line in build_logs:
+                if 'stream' in line:
+                    print(line['stream'].strip())
+            
+            return image
+        except docker.errors.BuildError as e:
+            print("Build Failed!")
+            # This log is crucial for our 'Self-Healing' feature later
+            error_log = "".join([str(log) for log in e.build_log])
+            raise Exception(f"Build Error: {error_log}")
