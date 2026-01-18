@@ -9,3 +9,7 @@ Improvement: Switched from vendor-specific SDKs to litellm. This makes the proje
 Risk: LLMs often wrap code in triple backticks (```) even when told not to.
 Fix: Added _clean_llm_output to sanitize the string before saving it to a file.
 Prompt Engineering: Discovered that the LLM needs to be explicitly told to "Copy requirements first" to utilize Docker's layer caching effectively.
+Project Started: 2026-01-17 Status: Feature 1 (Architect) Complete. Mistakes/Lessons Learned:
+Architecture Decision: Split code into core.py and main.py early to prevent "Spaghetti Code."
+Observation: If the ZIP has a nested folder (e.g., zipping a folder vs. zipping files), the WorkspaceManager might need to "find the root" where requirements.txt actually lives.
+To-Do for later: Add a "Root Finder" logic if the LLM gets confused by nested directories.
