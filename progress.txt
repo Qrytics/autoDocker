@@ -15,3 +15,8 @@ Observation: If the ZIP has a nested folder (e.g., zipping a folder vs. zipping 
 To-Do for later: Add a "Root Finder" logic if the LLM gets confused by nested directories.
 Project Date: 2026-01-18 Status: Feature 2 Finalized. Preparing for Feature 3. Mistakes/Lessons Learned: > * Logic Refactor: Realized that nesting everything in one big try block makes it hard to pinpoint where the failure happened.
 Improvement: Split the script into two distinct phases (Phase 1: Architect, Phase 2: Builder). This allows for a "checkpoint" where we have the Dockerfile written before we attempt the build.
+Project Date: 2026-01-18 Status: Feature 4 (Validation) added. Mistakes/Lessons Learned:
+Challenge: A container might "start" but then crash 2 seconds later because of a missing library.
+Fix: Added a time.sleep(10) delay in the test run. If it survives 10 seconds, we assume the entry point is correct.
+Risk: Leaving "Zombie Containers" running if the script crashes.
+Fix: Used a finally block in test_run to ensure container.stop() and container.remove() are always called.
