@@ -2,136 +2,156 @@
 import argparse
 import os
 import sys
-from .core import WorkspaceManager, LLMArchitect, DockerBuilder
+from rich.console import Console
+from rich.panel import Panel
+from rich.status import Status
+from rich.syntax import Syntax
+from core import WorkspaceManager, LLMArchitect, DockerBuilder
 
-def cli_entry():
-    parser = argparse.ArgumentParser(description="Auto-Docker CLI")
-    parser.add_argument("source", help="Path to ZIP file OR GitHub URL")
-    # ... other args ...
-    args = parser.parse_args()
-    
-    # Logic to detect if source is a URL or a file
-    if args.source.startswith("http"):
-        # Handle GitHub logic
-        pass 
-    else:
-        # Handle ZIP logic
-        pass
+console = Console()
 
-def run_auto_docker(zip_path, model_name, tag, skip_test):
-    print(f"\n{'='*50}")
-    print(f"AUTO-DOCKER: {os.path.basename(zip_path)}")
-    print(f"{'='*50}\n")
+def run_auto_docker(source, model_name, tag, skip_test):
+    """Main containerization logic with rich output."""
     
-    if not os.path.exists(zip_path):
-        print(f"Error: File '{zip_path}' not found.")
+    # Validate source exists
+    if not source.startswith("http") and not os.path.exists(source):
+        console.print(f"[bold red]Error:[/bold red] File '{source}' not found.")
         return None
     
-    # 1. Setup Workspace
-    workspace = WorkspaceManager(zip_path)
-    temp_path = workspace.setup()
-    print(f"Unpacked to temporary directory: {temp_path}")
-    
-    try:
-        # 2. Extract Context
-        context = workspace.get_context_for_llm()
+    with console.status("[bold green]Working...") as status:
         
-        # 3. Consult the Architect (LLM)
-        architect = LLMArchitect(model=model_name)
-        print("Analyzing project structure and generating Dockerfile...")
-        dockerfile_content = architect.generate_dockerfile(context)
+        # 1. Setup Workspace
+        status.update("[bold yellow]Unpacking source...")
+        workspace = WorkspaceManager(source)
+        temp_path = workspace.setup()
+        console.print(f"[green]Unpacked to:[/green] [dim]{temp_path}[/dim]")
         
-        # 4. Write the Dockerfile to the temp directory
-        dockerfile_path = os.path.join(temp_path, "Dockerfile")
-        with open(dockerfile_path, "w") as f:
-            f.write(dockerfile_content)
-        
-        print("Dockerfile generated and saved.")
-        print("-" * 30)
-        print(dockerfile_content)
-        print("-" * 30)
-        
-    except Exception as e:
-        print(f"Failed to generate Dockerfile: {e}")
-        workspace.cleanup()
-        return None
-    
-    # 5. Build the Image (with Self-Healing)
-    builder = DockerBuilder()
-    try:
-        print(f"\nBuilding Docker image: {tag}")
-        image = builder.build_image(temp_path, tag=tag)
-        print(f"Image built successfully! ID: {image.id}")
-        
-    except Exception as e:
-        print(f"Initial build failed. Attempting to self-heal...")
-        
-        # --- SELF-HEALING START ---
-        error_log = str(e)
-        # Re-read the faulty dockerfile to send to LLM
-        with open(dockerfile_path, "r") as f:
-            faulty_content = f.read()
-            
-        fixed_content = architect.heal_dockerfile(context, faulty_content, error_log)
-        
-        print("Applying fix and retrying build...")
-        with open(dockerfile_path, "w") as f:
-            f.write(fixed_content)
-            
         try:
+            # 2. Extract Context
+            status.update("[bold yellow]Extracting project context...")
+            context = workspace.get_context_for_llm()
+            console.print("[green]Context extracted[/green] ")
+            
+            # 3. Consult the Architect (LLM)
+            status.update(f"[bold blue]Architecting via {model_name}...")
+            architect = LLMArchitect(model=model_name)
+            dockerfile_content = architect.generate_dockerfile(context)
+            
+            # 4. Write the Dockerfile
+            dockerfile_path = os.path.join(temp_path, "Dockerfile")
+            with open(dockerfile_path, "w") as f:
+                f.write(dockerfile_content)
+            
+            console.print("[green]Dockerfile generated[/green]")
+            
+            # Display the Dockerfile with syntax highlighting
+            console.print("\n[bold cyan]Generated Dockerfile:[/bold cyan]")
+            syntax = Syntax(dockerfile_content, "dockerfile", theme="monokai", line_numbers=True)
+            console.print(syntax)
+            
+        except Exception as e:
+            console.print(f"[bold red]Failed to generate Dockerfile:[/bold red] {e}")
+            workspace.cleanup()
+            return None
+        
+        # 5. Build the Image (with Self-Healing)
+        builder = DockerBuilder()
+        try:
+            status.update(f"[bold magenta]Building Docker image: {tag} (this may take a minute)...")
             image = builder.build_image(temp_path, tag=tag)
-            print(f"Healed! Image built successfully! ID: {image.id}")
-        except Exception as retry_error:
-            print(f"Healing failed. Manual intervention required: {retry_error}")
-            print(f"Workspace preserved at: {temp_path}")
-            return None
-        # --- SELF-HEALING END ---
+            console.print(f"[green]Image built successfully![/green] [dim]ID: {image.id[:12]}[/dim]")
+            
+        except Exception as e:
+            console.print(f"[yellow]Initial build failed. Attempting to self-heal...[/yellow]")
+            
+            # --- SELF-HEALING START ---
+            status.update("[bold yellow]Self-healing Dockerfile...")
+            error_log = str(e)
+            
+            with open(dockerfile_path, "r") as f:
+                faulty_content = f.read()
+                
+            fixed_content = architect.heal_dockerfile(context, faulty_content, error_log)
+            
+            with open(dockerfile_path, "w") as f:
+                f.write(fixed_content)
+            
+            console.print("[yellow]→[/yellow] Applied fix, retrying build...")
+            
+            try:
+                status.update(f"[bold magenta]Rebuilding Docker image: {tag}...")
+                image = builder.build_image(temp_path, tag=tag)
+                console.print(f"[green]Healed![/green] Image built successfully! [dim]ID: {image.id[:12]}[/dim]")
+            except Exception as retry_error:
+                console.print(f"[bold red]Healing failed:[/bold red] {retry_error}")
+                console.print(f"[dim]Workspace preserved at: {temp_path}[/dim]")
+                return None
+            # --- SELF-HEALING END ---
+        
+        # 6. Runtime Validation
+        if not skip_test:
+            try:
+                status.update("[bold cyan]Running runtime validation tests...")
+                success = builder.test_run(tag)
+                if success:
+                    console.print("[green]All runtime checks passed![/green]")
+            except Exception as runtime_err:
+                console.print(f"[yellow]Image builds, but fails to run:[/yellow] {runtime_err}")
+                console.print(f"[dim]Workspace preserved at: {temp_path}[/dim]")
+                return None
+        else:
+            console.print("[dim]Runtime validation skipped (--skip-test flag)[/dim]")
     
-    # 6. Runtime Validation
-    if not skip_test:
-        try:
-            print("\nRunning runtime validation tests...")
-            success = builder.test_run(tag)
-            if success:
-                print("All checks passed! Your image is ready for production.")
-        except Exception as runtime_err:
-            print(f"Image builds, but fails to run: {runtime_err}")
-            print(f"Workspace preserved at: {temp_path}")
-            # Note: We could trigger a second 'Heal' loop here if we wanted!
-            return None
-    else:
-        print("\nRuntime validation skipped (--skip-test flag used)")
-    
-    print(f"\nProject successfully containerized!")
-    print(f"Docker Image: {tag}")
-    print(f"Dockerfile Location: {temp_path}/Dockerfile")
-    print(f"Workspace preserved at: {temp_path}")
+    # Success summary
+    console.print("\n" + "="*60)
+    console.print(Panel.fit(
+        f"[bold green]Project Successfully Containerized![/bold green]\n\n"
+        f"[cyan]Docker Image:[/cyan] {tag}\n"
+        f"[cyan]Dockerfile:[/cyan] {temp_path}/Dockerfile\n"
+        f"[cyan]Workspace:[/cyan] {temp_path}",
+        border_style="green",
+        title="Success"
+    ))
     
     return image
 
-if __name__ == "__main__":
+
+def cli_entry():
+    """CLI entry point with enhanced argument parsing."""
     parser = argparse.ArgumentParser(
-        description="Auto-Docker: Intelligent Containerization",
-        formatter_class=argparse.RawDescriptionHelpFormatter,
-        epilog="""
-Examples:
-  python main.py my_project.zip
-  python main.py my_project.zip --tag myapp:v1.0
-  python main.py my_project.zip --model gemini/gemini-1.5-flash --skip-test
-        """
+        prog="autodocker",
+        description="[bold cyan]Auto-Docker[/bold cyan]: Intelligent Containerization",
+        epilog="Example: autodocker ./my_project.zip --tag web-app:v1",
+        formatter_class=argparse.RawDescriptionHelpFormatter
     )
     
-    parser.add_argument("zip", help="Path to the project ZIP file")
-    parser.add_argument("--model", default="gemini/gemini-pro", 
-                       help="LiteLLM model string (default: gemini/gemini-pro)")
-    parser.add_argument("--tag", default="auto-docker-test:latest", 
-                       help="Tag for the resulting Docker image (default: auto-docker-test:latest)")
-    parser.add_argument("--skip-test", action="store_true", 
-                       help="Skip the runtime stability test")
-    
+    # Positional argument
+    parser.add_argument("source", help="Path to a .zip file or a public GitHub URL")
+
+    # Configuration options group
+    group = parser.add_argument_group("Configuration Options")
+    group.add_argument("--model", default="gemini/gemini-pro", 
+                      help="LiteLLM model (default: gemini/gemini-pro)")
+    group.add_argument("--tag", default="auto-docker-test:latest", 
+                      help="Docker image tag (default: auto-docker-test:latest)")
+    group.add_argument("--skip-test", action="store_true", 
+                      help="Skip runtime stability check")
+
     args = parser.parse_args()
-    
-    result = run_auto_docker(args.zip, args.model, args.tag, args.skip_test)
+
+    # Welcome header
+    console.print(Panel.fit(
+        "[bold green]Welcome to Auto-Docker[/bold green] v0.1.0\n"
+        "[dim]Automatically architecting your containers...[/dim]",
+        border_style="cyan"
+    ))
+
+    # Run the main logic
+    result = run_auto_docker(args.source, args.model, args.tag, args.skip_test)
     
     # Exit with appropriate code
     sys.exit(0 if result else 1)
+
+
+if __name__ == "__main__":
+    cli_entry()
