@@ -10,7 +10,7 @@ from litellm import completion
 
 ## Feature 1 / Task 1
 class WorkspaceManager:
-    def __init__(self, zip_path):
+    def __init__(self, source_path):
         self.source_path = source_path # This can be a URL or a Path
         self.temp_dir = None
         self.file_map = []
