@@ -11,7 +11,7 @@ from litellm import completion
 ## Feature 1 / Task 1
 class WorkspaceManager:
     def __init__(self, zip_path):
-        self.zip_path = zip_path
+        self.source_path = source_path # This can be a URL or a Path
         self.temp_dir = None
         self.file_map = []
 
@@ -71,14 +71,13 @@ class WorkspaceManager:
 
     def setup_from_github(self, repo_url):
         """Clones a GitHub repo to a temp directory."""
-        self.temp_dir = tempfile.mkdtemp(prefix="auto_docker_git_")
-        print(f"Cloning {repo_url}...")
+        self.temp_dir = tempfile.mkdtemp(prefix="autodocker_git_")
         try:
             Repo.clone_from(repo_url, self.temp_dir)
-            self._build_file_map()
+            self._build_file_map() # Build the tree for the LLM
             return self.temp_dir
         except Exception as e:
-            raise Exception(f"Failed to clone repository: {e}")
+            raise Exception(f"Git Clone Failed: {e}")
 
 ## Feature 1 / Task 2
 class LLMArchitect:
