@@ -7,6 +7,7 @@ from rich.console import Console
 from rich.panel import Panel
 from rich.status import Status
 from rich.syntax import Syntax
+from rich_argparse import RichHelpFormatter
 from .core import WorkspaceManager, LLMArchitect, DockerBuilder
 
 console = Console()
@@ -127,7 +128,7 @@ def cli_entry():
         prog="autodocker",
         description="[bold cyan]Auto-Docker[/bold cyan]: Intelligent Containerization",
         epilog="Example: autodocker ./my_project.zip --tag web-app:v1",
-        formatter_class=argparse.RawDescriptionHelpFormatter
+        formatter_class=RichHelpFormatter
     )
     
     # Positional argument
