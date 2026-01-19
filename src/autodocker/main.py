@@ -23,10 +23,15 @@ def run_auto_docker(source, model_name, tag, skip_test):
     with console.status("[bold green]Working...") as status:
         
         # 1. Setup Workspace
-        status.update("[bold yellow]Unpacking source...")
         workspace = WorkspaceManager(source)
-        temp_path = workspace.setup()
-        console.print(f"[green]Unpacked to:[/green] [dim]{temp_path}[/dim]")
+        if source.startswith("http"):
+            status.update(f"[bold yellow]Cloning repository from GitHub...")
+            temp_path = workspace.setup_from_github(source) # Call our new Git method
+        else:
+            status.update("[bold yellow]Unpacking local zip file...")
+            temp_path = workspace.setup() # Call the original Zip method
+            
+        console.print(f"[green]Workspace ready at:[/green] [dim]{temp_path}[/dim]")
         
         try:
             # 2. Extract Context
