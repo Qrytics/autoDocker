@@ -148,6 +148,7 @@ class DockerBuilder:
     def __init__(self):
         try:
             self.client = docker.from_env()
+            self.client.ping()
         except Exception as e:
             raise Exception("Docker is not running. Please start Docker Desktop.")
 
