@@ -56,14 +56,20 @@ class WorkspaceManager:
         """Returns the file map and content of key manifest files."""
         context = f"Project Structure:\n{self.file_map}\n\n"
 
-        context += "=== FILES THAT ACTUALLY EXIST ===\n"
+        context += "=== ROOT DIRECTORY FILES ===\n"
+        root_files = [f for f in os.listdir(self.temp_dir) if os.path.isfile(os.path.join(self.temp_dir, f))]
+        for f in root_files:
+            context += f"  - {f}\n"
+        context += "\n"
+        
+        context += "=== ALL FILES THAT ACTUALLY EXIST ===\n"
         context += "\n".join(self.actual_files)
         context += "\n\n"
         
-        # Identify key files that define the tech stack
-        manifests = ['package.json', 'requirements.txt', 'go.mod', 'pom.xml', 'main.py', 
-                     'app.py', 'index.js', 'pyproject.toml', 'setup.py']
-
+        manifests = ['package.json', 'requirements.txt', 'go.mod', 'pom.xml', 
+                    'main.py', 'app.py', 'index.js', 'pyproject.toml', 'setup.py',
+                    'README.md', 'README.rst', 'README.txt', 'LICENSE']  # NEW: Added README variants
+        
         found_manifests = []
         missing_manifests = []
         
@@ -74,7 +80,7 @@ class WorkspaceManager:
                     found_manifests.append(f)
                     file_path = os.path.join(root, f)
                     with open(file_path, 'r', errors='ignore') as content:
-                        context += f"--- {f} ---\n{content.read(1000)}\n" # Read first 1000 chars
+                        context += f"--- {f} ---\n{content.read(1000)}\n"
         
         missing_manifests = [m for m in manifests if m not in found_manifests]
         if missing_manifests:
@@ -116,7 +122,13 @@ class LLMArchitect:
             "4. Ensure the entry point is correctly identified from the file list.\n"
             "5. CRITICAL: Only COPY files that are listed in 'FILES THAT ACTUALLY EXIST' section.\n"
             "6. If requirements.txt is missing but pyproject.toml or setup.py exists, use 'pip install .' instead.\n"
-            "7. Return ONLY the content of the Dockerfile. No markdown code blocks, no explanations."
+            "7. IMPORTANT COPYING STRATEGY:\n"
+            "   - If you see pyproject.toml or setup.py, modern build backends (flit, setuptools, poetry) "
+            "often require README files (README.md, README.rst) and LICENSE files to install.\n"
+            "   - For build contexts: Either use 'COPY . .' to copy everything OR explicitly COPY all "
+            "necessary files including README*, LICENSE*, and any config files.\n"
+            "   - Check the ROOT DIRECTORY FILES list to see what documentation files exist.\n"
+            "8. Return ONLY the content of the Dockerfile. No markdown code blocks, no explanations."
         )
 
         user_prompt = f"Analyze this project and create the most optimized Dockerfile possible:\n\n{project_context}"
@@ -175,17 +187,22 @@ class LLMArchitect:
             "2. If a file like requirements.txt is missing, do NOT attempt to use it.\n"
             "3. Look for alternatives: pyproject.toml, setup.py, or use 'pip install .' for Python projects.\n"
             "4. If the error mentions a missing file, CHECK if it's in the 'MISSING STANDARD FILES' list.\n"
-            "5. Return ONLY the fixed Dockerfile content. No explanations, no markdown."
+            "5. IMPORTANT: If the error is 'FileNotFoundError' for README.rst, README.md, LICENSE, or similar:\n"
+            "   - These files exist in the project but weren't copied into the Docker image.\n"
+            "   - Check the ROOT DIRECTORY FILES list to see what needs to be copied.\n"
+            "   - Use 'COPY . .' to copy everything OR explicitly add 'COPY README.* ./' and 'COPY LICENSE ./'.\n"
+            "6. Modern Python build backends (flit, poetry, setuptools) often require README and LICENSE files.\n"
+            "7. Return ONLY the fixed Dockerfile content. No explanations, no markdown, no 'Here is the fix' preamble."
         )
 
         user_prompt = (
             f"=== PROJECT CONTEXT (SOURCE OF TRUTH) ===\n{project_context}\n\n"
             f"=== FAULTY DOCKERFILE ===\n{faulty_dockerfile}\n\n"
             f"=== DOCKER BUILD ERROR ===\n{error_log}\n\n"
-            "Analyze the error and fix the Dockerfile. Remember: only use files that ACTUALLY EXIST. "
+            "Analyze the error and fix the Dockerfile. If files are missing from the image, add COPY commands for them. "
             "Return ONLY valid Dockerfile code."
         )
-
+        
         try:
             response = completion(
                 model=self.model,
