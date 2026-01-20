@@ -99,7 +99,7 @@ def run_auto_docker(source, model_name, tag, skip_test):
                 return None
             # --- SELF-HEALING END ---
         
-        # 6. Runtime Validation
+        # 6. Runtime Validation (w/ healing)
         if not skip_test:
             try:
                 status.update("[bold cyan]Running runtime validation tests...")
@@ -108,8 +108,42 @@ def run_auto_docker(source, model_name, tag, skip_test):
                     console.print("[green]All runtime checks passed![/green]")
             except Exception as runtime_err:
                 console.print(f"[yellow]Image builds, but fails to run:[/yellow] {runtime_err}")
-                console.print(f"[dim]Workspace preserved at: {temp_path}[/dim]")
-                return None
+                status.update("[bold yellow]Healing runtime configuration...")
+                
+                runtime_log = str(runtime_err)
+                with open(dockerfile_path, "r") as f:
+                    current_dockerfile = f.read()
+
+                fixed_runtime_content = architect.heal_runtime(
+                    context, 
+                    current_dockerfile, 
+                    runtime_log
+                )
+                with open(dockerfile_path, "w") as f:
+                    f.write(fixed_runtime_content)
+                
+                console.print("[yellow]→[/yellow] Applied runtime fix, rebuilding...")
+                
+                # Rebuild with the fixed Dockerfile
+                try:
+                    status.update(f"[bold magenta]Rebuilding with runtime fix: {tag}...")
+                    image = builder.build_image(temp_path, tag=tag)
+                    console.print(f"[green]Rebuilt successfully![/green] [dim]ID: {image.id[:12]}[/dim]")
+                    
+                    # Test again
+                    status.update("[bold cyan]Retesting runtime...")
+                    success = builder.test_run(tag)
+                    if success:
+                        console.print("[green]Runtime healing successful! Container is stable.[/green]")
+                    else:
+                        console.print("[yellow]Runtime still unstable after healing.[/yellow]")
+                        console.print(f"[dim]Workspace preserved at: {temp_path}[/dim]")
+                        return None
+                        
+                except Exception as final_error:
+                    console.print(f"[bold red]Runtime healing failed:[/bold red] {final_error}")
+                    console.print(f"[dim]Workspace preserved at: {temp_path}[/dim]")
+                    return None
         else:
             console.print("[dim]Runtime validation skipped (--skip-test flag)[/dim]")
     
