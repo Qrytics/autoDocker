@@ -283,12 +283,19 @@ class DockerBuilder:
             time.sleep(timeout)
             
             container.reload() # Refresh container status
+            
+            # GET THE EXIT CODE
+            exit_code = container.attrs['State']['ExitCode']
+            logs = container.logs().decode("utf-8").strip()
+
             if container.status == "running":
                 print("Container is stable and running.")
                 return True
+            elif exit_code == 0:
+                print(f"Container completed successfully (Task Mode). Logs: {logs}")
+                return True
             else:
-                logs = container.logs().decode("utf-8")
-                raise Exception(f"Container stopped with status {container.status}. Logs: {logs}")
+                raise Exception(f"Container crashed (Exit {exit_code}). Logs: {logs}")
                 
         except Exception as e:
             print(f"Runtime Validation Failed: {e}")
