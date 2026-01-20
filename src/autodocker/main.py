@@ -120,7 +120,6 @@ def run_auto_docker(source, model_name, tag, skip_test):
                 
                 status.update("[bold yellow]Healing runtime configuration...")
                 
-                
                 with open(dockerfile_path, "r") as f:
                     current_dockerfile = f.read()
 
