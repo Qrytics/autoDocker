@@ -2,7 +2,6 @@ import os
 import zipfile
 import tempfile
 import shutil
-import os
 import docker
 from git import Repo
 from pathlib import Path
@@ -107,8 +106,35 @@ class WorkspaceManager:
 
 ## Feature 1 / Task 2
 class LLMArchitect:
-    def __init__(self, model="groq/llama-3.3-70b-versatile"): # Defaulting to groq
+    def __init__(self, model="groq/llama-3.1-8b-instant"): # Defaulting to groq
         self.model = model
+
+    def _ask_llm_with_retry(self, messages):
+        """Retries the LLM call if it hits a rate limit."""
+        import time
+        import litellm
+        
+        max_retries = 3
+        
+        for attempt in range(max_retries):
+            try:
+                # Try to get the response
+                response = completion(
+                    model=self.model,
+                    messages=messages,
+                    temperature=0.2
+                )
+                return response
+            except litellm.RateLimitError:
+                # If we get a rate limit, WAIT instead of crashing
+                wait_time = 60  # Wait 60 seconds
+                print(f"\n[Rate Limit Hit] Pausing for {wait_time} seconds before retry {attempt + 1}/{max_retries}...")
+                time.sleep(wait_time)
+            except Exception as e:
+                # If it's another error, crash as normal
+                raise e
+        
+        raise Exception("Failed after 3 retries due to rate limits.")
 
     def generate_dockerfile(self, project_context):
         """Sends project context to LLM and extracts the Dockerfile code."""
@@ -117,7 +143,9 @@ class LLMArchitect:
             "You are an expert DevOps Engineer. Your task is to generate a Dockerfile based on a project structure.\n"
             "STRICT REQUIREMENTS:\n"
             "1. Use MULTI-STAGE builds to keep the image small.\n"
-            "2. Use 'distroless' or 'alpine' as the final runtime base for security.\n"
+            "2. Use 'alpine' or 'slim' variants as the final runtime base for security.\n"
+            "   Avoid using Distroless images (gcr.io/distroless) as they often have inconsistent tagging.\n"
+            "   Stick to official Docker Hub images like 'python:3.9-slim' or 'python:3.9-alpine' for reliability.\n"
             "3. Optimize for layer caching (copy requirements/package files first).\n"
             "4. Ensure the entry point is correctly identified from the file list.\n"
             "5. CRITICAL: Only COPY files that are listed in 'FILES THAT ACTUALLY EXIST' section.\n"
@@ -132,16 +160,13 @@ class LLMArchitect:
         )
 
         user_prompt = f"Analyze this project and create the most optimized Dockerfile possible:\n\n{project_context}"
-
-        try:
-            response = completion(
-                model=self.model,
-                messages=[
+        messages=[
                     {"role": "system", "content": system_prompt},
                     {"role": "user", "content": user_prompt}
-                ],
-                temperature=0.2 # Keep it deterministic
-            )
+        ]
+
+        try:
+            response = self._ask_llm_with_retry(messages)
             
             dockerfile_content = response.choices[0].message.content
             return self._clean_llm_output(dockerfile_content)
@@ -203,15 +228,14 @@ class LLMArchitect:
             "Return ONLY valid Dockerfile code."
         )
         
+        messages = [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": user_prompt}
+        ]
+        
         try:
-            response = completion(
-                model=self.model,
-                messages=[
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": user_prompt}
-                ],
-                temperature=0.1
-            )
+            response = self._ask_llm_with_retry(messages)
+            
             return self._clean_llm_output(response.choices[0].message.content)
         except Exception as e:
             return f"Error healing Dockerfile: {str(e)}"
@@ -241,19 +265,18 @@ class LLMArchitect:
             "Return ONLY valid Dockerfile code."
         )
 
+        messages = [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": user_prompt}
+        ]
+
         try:
-            response = completion(
-                model=self.model,
-                messages=[
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": user_prompt}
-                ],
-                temperature=0.1
-            )
+            response = self._ask_llm_with_retry(messages)
+            
             return self._clean_llm_output(response.choices[0].message.content)
         except Exception as e:
             return f"Error healing runtime: {str(e)}"
-
+        
 ## Feature 2 / Task 1
 class DockerBuilder:
     def __init__(self):
@@ -283,10 +306,15 @@ class DockerBuilder:
             return image
         except docker.errors.BuildError as e:
             print("Build Failed!")
-            # This log is crucial for our 'Self-Healing' feature later
-            error_log = "".join([str(log) for log in e.build_log])
-            raise Exception(f"Build Error: {error_log}")
-
+            # EXTRACT ONLY THE USEFUL ERROR INFO
+            # We filter for 'error' keys or take the last 20 lines of the stream
+            raw_logs = [str(log.get('stream', '').strip()) or str(log.get('error', '')) for log in e.build_log]
+            
+            # Keep only the last 20 lines to save tokens
+            clean_log = "\n".join([l for l in raw_logs if l])[-4000:] 
+            
+            raise Exception(f"Build Error (Truncated): {clean_log}")
+        
     def test_run(self, image_tag, timeout=10):
         """Starts the container briefly to ensure it doesn't crash on boot."""
         print(f"Testing container stability for {timeout} seconds...")
