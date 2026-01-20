@@ -71,6 +71,7 @@ class WorkspaceManager:
         for root, _, files in os.walk(self.temp_dir):
             for f in files:
                 if f in manifests:
+                    found_manifests.append(f)
                     file_path = os.path.join(root, f)
                     with open(file_path, 'r', errors='ignore') as content:
                         context += f"--- {f} ---\n{content.read(1000)}\n" # Read first 1000 chars
@@ -100,7 +101,7 @@ class WorkspaceManager:
 
 ## Feature 1 / Task 2
 class LLMArchitect:
-    def __init__(self, model="gemini/gemini-pro"): # Defaulting to Gemini, but LiteLLM handles any
+    def __init__(self, model="groq/llama-3.3-70b-versatile"): # Defaulting to groq
         self.model = model
 
     def generate_dockerfile(self, project_context):
@@ -137,7 +138,33 @@ class LLMArchitect:
 
     def _clean_llm_output(self, text):
         """Removes markdown backticks if the LLM ignores instructions."""
-        return text.replace("```dockerfile", "").replace("```", "").strip()
+        # Step 1: Remove markdown code blocks
+        if "```dockerfile" in text:
+            text = text.split("```dockerfile")[1].split("```")[0]
+        elif "```" in text:
+            parts = text.split("```")
+            if len(parts) >= 3:
+                text = parts[1]
+        
+        # Step 2: Only keep lines that start with valid Docker instructions
+        # This prevents "Error:" or "Here is the fix:" from being included
+        valid_instructions = ("FROM", "RUN", "COPY", "WORKDIR", "CMD", "ENTRYPOINT", "EXPOSE", "ENV", "ARG", "LABEL", "USER", "VOLUME", "HEALTHCHECK", "#")
+        lines = text.strip().split("\n")
+        cleaned_lines = []
+        
+        for line in lines:
+            stripped = line.strip()
+            # Keep lines that start with valid instructions OR continuation lines (indented)
+            if stripped and (stripped.upper().startswith(valid_instructions) or line.startswith(" ") or line.startswith("\t")):
+                cleaned_lines.append(line)
+        
+        result = "\n".join(cleaned_lines).strip()
+        
+        # Step 3: Validate we have at least a FROM instruction
+        if not result or "FROM" not in result.upper():
+            raise ValueError(f"LLM did not return a valid Dockerfile. Response was: {text[:200]}")
+        
+        return result
 
     def heal_dockerfile(self, project_context, faulty_dockerfile, error_log):
         """Asks the LLM to fix a Dockerfile that failed to build."""
@@ -155,7 +182,8 @@ class LLMArchitect:
             f"=== PROJECT CONTEXT (SOURCE OF TRUTH) ===\n{project_context}\n\n"
             f"=== FAULTY DOCKERFILE ===\n{faulty_dockerfile}\n\n"
             f"=== DOCKER BUILD ERROR ===\n{error_log}\n\n"
-            "Analyze the error and fix the Dockerfile. Remember: only use files that ACTUALLY EXIST."
+            "Analyze the error and fix the Dockerfile. Remember: only use files that ACTUALLY EXIST. "
+            "Return ONLY valid Dockerfile code."
         )
 
         try:
@@ -181,17 +209,19 @@ class LLMArchitect:
             "2. For LIBRARIES: The CMD should be a simple validation like 'python -c \"import X; print(X.__version__)\"'\n"
             "3. For APPLICATIONS: Fix the entry point (e.g., correct the path to main.py, add ENTRYPOINT).\n"
             "4. Common runtime errors:\n"
+            "   - 'executable file not found' → Use full command: CMD [\"python\", \"script.py\"] not CMD [\"script.py\"]\n"
             "   - 'No application entry point specified' → Library project, use import test\n"
             "   - 'ModuleNotFoundError' → Missing dependency or wrong WORKDIR\n"
             "   - 'Permission denied' → Add executable permissions or fix user\n"
-            "5. Return ONLY the fixed Dockerfile content. No explanations, no markdown."
+            "5. Return ONLY the fixed Dockerfile content. No explanations, no markdown, no preamble."
         )
 
         user_prompt = (
             f"=== PROJECT CONTEXT ===\n{project_context}\n\n"
             f"=== CURRENT DOCKERFILE (builds successfully) ===\n{current_dockerfile}\n\n"
             f"=== RUNTIME ERROR LOG ===\n{runtime_error_log}\n\n"
-            "The image builds fine but crashes when running. Fix the CMD/ENTRYPOINT to make it work."
+            "The image builds fine but crashes when running. Fix the CMD/ENTRYPOINT to make it work. "
+            "Return ONLY valid Dockerfile code."
         )
 
         try:
