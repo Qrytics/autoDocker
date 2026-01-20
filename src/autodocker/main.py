@@ -45,6 +45,10 @@ def run_auto_docker(source, model_name, tag, skip_test):
             architect = LLMArchitect(model=model_name)
             dockerfile_content = architect.generate_dockerfile(context)
 
+            if "RateLimitError" in dockerfile_content or "AuthenticationError" in dockerfile_content:
+                console.print("[bold red]LLM Provider Error:[/bold red] You are being rate limited. Please wait 60 seconds.")
+                return None
+
             if "AuthenticationError" in dockerfile_content or "API key not valid" in dockerfile_content:
                 console.print("[bold red]LLM Auth Failed:[/bold red] Check your GROQ_API_KEY.")
                 return None
@@ -81,9 +85,9 @@ def run_auto_docker(source, model_name, tag, skip_test):
             error_log = str(e)
 
             # Rate limit protection - wait before calling LLM again
-            console.print("[dim]Rate limit protection: waiting 5 seconds...[/dim]")
+            console.print("[dim]Rate limit protection: waiting 20 seconds...[/dim]")
             import time
-            time.sleep(5)
+            time.sleep(60)
             
             with open(dockerfile_path, "r") as f:
                 faulty_content = f.read()
@@ -124,9 +128,9 @@ def run_auto_docker(source, model_name, tag, skip_test):
                 console.print(f"[yellow]Runtime failed:[/yellow] {runtime_log[:150]}")
                 console.print(f"[yellow]Attempting runtime healing...[/yellow]")
 
-                console.print("[dim]Rate limit protection: waiting 5 seconds...[/dim]")
+                console.print("[dim]Rate limit protection: waiting 20 seconds...[/dim]")
                 import time
-                time.sleep(5)
+                time.sleep(60)
                 
                 status.update("[bold yellow]Healing runtime configuration...")
                 
@@ -211,8 +215,8 @@ def cli_entry():
 
     # Configuration options group
     group = parser.add_argument_group("Configuration Options")
-    group.add_argument("--model", default="groq/llama-3.3-70b-versatile", 
-                  help="LiteLLM model (default: groq/llama-3.3-70b-versatile)")
+    group.add_argument("--model", default="groq/llama-3.1-8b-instant", 
+                  help="LiteLLM model (default: groq/llama-3.1-8b-instant)")
     group.add_argument("--tag", default="auto-docker-test:latest", 
                       help="Docker image tag (default: auto-docker-test:latest)")
     group.add_argument("--skip-test", action="store_true", 
