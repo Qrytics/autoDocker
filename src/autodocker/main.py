@@ -145,8 +145,8 @@ def cli_entry():
 
     # Configuration options group
     group = parser.add_argument_group("Configuration Options")
-    group.add_argument("--model", default="groq/llama3-70b-8192", 
-                  help="LiteLLM model (default: groq/llama3-70b-8192)")
+    group.add_argument("--model", default="groq/llama-3.3-70b-versatile", 
+                  help="LiteLLM model (default: groq/llama-3.3-70b-versatile)")
     group.add_argument("--tag", default="auto-docker-test:latest", 
                       help="Docker image tag (default: auto-docker-test:latest)")
     group.add_argument("--skip-test", action="store_true", 
