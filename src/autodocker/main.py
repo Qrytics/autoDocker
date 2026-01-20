@@ -43,6 +43,10 @@ def run_auto_docker(source, model_name, tag, skip_test):
             status.update(f"[bold blue]Architecting via {model_name}...")
             architect = LLMArchitect(model=model_name)
             dockerfile_content = architect.generate_dockerfile(context)
+
+            if "AuthenticationError" in dockerfile_content or "API key not valid" in dockerfile_content:
+                console.print("[bold red]LLM Auth Failed:[/bold red] Check your GROQ_API_KEY.")
+                return None
             
             # 4. Write the Dockerfile
             dockerfile_path = os.path.join(temp_path, "Dockerfile")
@@ -141,8 +145,8 @@ def cli_entry():
 
     # Configuration options group
     group = parser.add_argument_group("Configuration Options")
-    group.add_argument("--model", default="gemini/gemini-pro", 
-                      help="LiteLLM model (default: gemini/gemini-pro)")
+    group.add_argument("--model", default="groq/llama3-70b-8192", 
+                  help="LiteLLM model (default: groq/llama3-70b-8192)")
     group.add_argument("--tag", default="auto-docker-test:latest", 
                       help="Docker image tag (default: auto-docker-test:latest)")
     group.add_argument("--skip-test", action="store_true", 
