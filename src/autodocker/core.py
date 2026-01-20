@@ -171,6 +171,42 @@ class LLMArchitect:
         except Exception as e:
             return f"Error healing Dockerfile: {str(e)}"
 
+    def heal_runtime(self, project_context, current_dockerfile, runtime_error_log):
+        """Asks the LLM to fix a Dockerfile that builds but fails at runtime."""
+        
+        system_prompt = (
+            "You are a Senior DevOps Engineer. A Docker image BUILT successfully, but FAILED when running.\n"
+            "CRITICAL ANALYSIS REQUIRED:\n"
+            "1. Determine if this is a LIBRARY (like Flask, Bottle, Django libs) or an APPLICATION.\n"
+            "2. For LIBRARIES: The CMD should be a simple validation like 'python -c \"import X; print(X.__version__)\"'\n"
+            "3. For APPLICATIONS: Fix the entry point (e.g., correct the path to main.py, add ENTRYPOINT).\n"
+            "4. Common runtime errors:\n"
+            "   - 'No application entry point specified' → Library project, use import test\n"
+            "   - 'ModuleNotFoundError' → Missing dependency or wrong WORKDIR\n"
+            "   - 'Permission denied' → Add executable permissions or fix user\n"
+            "5. Return ONLY the fixed Dockerfile content. No explanations, no markdown."
+        )
+
+        user_prompt = (
+            f"=== PROJECT CONTEXT ===\n{project_context}\n\n"
+            f"=== CURRENT DOCKERFILE (builds successfully) ===\n{current_dockerfile}\n\n"
+            f"=== RUNTIME ERROR LOG ===\n{runtime_error_log}\n\n"
+            "The image builds fine but crashes when running. Fix the CMD/ENTRYPOINT to make it work."
+        )
+
+        try:
+            response = completion(
+                model=self.model,
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": user_prompt}
+                ],
+                temperature=0.1
+            )
+            return self._clean_llm_output(response.choices[0].message.content)
+        except Exception as e:
+            return f"Error healing runtime: {str(e)}"
+
 ## Feature 2 / Task 1
 class DockerBuilder:
     def __init__(self):
