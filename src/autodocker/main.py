@@ -82,17 +82,24 @@ def run_auto_docker(source, model_name, tag, skip_test):
             with open(dockerfile_path, "r") as f:
                 faulty_content = f.read()
                 
-            fixed_content = architect.heal_dockerfile(context, faulty_content, error_log)
-            
-            with open(dockerfile_path, "w") as f:
-                f.write(fixed_content)
-            
-            console.print("[yellow]→[/yellow] Applied fix, retrying build...")
-            
             try:
+                fixed_content = architect.heal_dockerfile(context, faulty_content, error_log)
+                
+                # Validate the fixed content
+                if not fixed_content or "Error" in fixed_content[:50]:
+                    console.print(f"[bold red]Healing produced invalid output:[/bold red] {fixed_content[:100]}")
+                    console.print(f"[dim]Workspace preserved at: {temp_path}[/dim]")
+                    return None
+                
+                with open(dockerfile_path, "w") as f:
+                    f.write(fixed_content)
+                
+                console.print("[yellow]→[/yellow] Applied fix, retrying build...")
+                
                 status.update(f"[bold magenta]Rebuilding Docker image: {tag}...")
                 image = builder.build_image(temp_path, tag=tag)
                 console.print(f"[green]Healed![/green] Image built successfully! [dim]ID: {image.id[:12]}[/dim]")
+                
             except Exception as retry_error:
                 console.print(f"[bold red]Healing failed:[/bold red] {retry_error}")
                 console.print(f"[dim]Workspace preserved at: {temp_path}[/dim]")
@@ -107,25 +114,41 @@ def run_auto_docker(source, model_name, tag, skip_test):
                 if success:
                     console.print("[green]All runtime checks passed![/green]")
             except Exception as runtime_err:
-                console.print(f"[yellow]Image builds, but fails to run:[/yellow] {runtime_err}")
+                runtime_log = str(runtime_err)
+                console.print(f"[yellow]Runtime failed:[/yellow] {runtime_log[:150]}")
+                console.print(f"[yellow]Attempting runtime healing...[/yellow]")
+                
                 status.update("[bold yellow]Healing runtime configuration...")
                 
-                runtime_log = str(runtime_err)
+                
                 with open(dockerfile_path, "r") as f:
                     current_dockerfile = f.read()
 
-                fixed_runtime_content = architect.heal_runtime(
-                    context, 
-                    current_dockerfile, 
-                    runtime_log
-                )
-                with open(dockerfile_path, "w") as f:
-                    f.write(fixed_runtime_content)
-                
-                console.print("[yellow]→[/yellow] Applied runtime fix, rebuilding...")
-                
-                # Rebuild with the fixed Dockerfile
                 try:
+                    fixed_runtime_content = architect.heal_runtime(
+                        context, 
+                        current_dockerfile, 
+                        runtime_log
+                    )
+                    
+                    # Validate the fixed content
+                    if not fixed_runtime_content or "Error" in fixed_runtime_content[:50]:
+                        console.print(f"[bold red]Runtime healing produced invalid output:[/bold red] {fixed_runtime_content[:100]}")
+                        console.print(f"[dim]Workspace preserved at: {temp_path}[/dim]")
+                        return None
+                    
+                    # Write the fixed Dockerfile
+                    with open(dockerfile_path, "w") as f:
+                        f.write(fixed_runtime_content)
+                    
+                    console.print("[yellow]→[/yellow] Applied runtime fix, rebuilding...")
+                    
+                    # Show the fixed Dockerfile
+                    console.print("\n[bold cyan]Fixed Dockerfile:[/bold cyan]")
+                    syntax = Syntax(fixed_runtime_content, "dockerfile", theme="ansi_dark", line_numbers=True)
+                    console.print(syntax)
+                    
+                    # Rebuild with the fixed Dockerfile
                     status.update(f"[bold magenta]Rebuilding with runtime fix: {tag}...")
                     image = builder.build_image(temp_path, tag=tag)
                     console.print(f"[green]Rebuilt successfully![/green] [dim]ID: {image.id[:12]}[/dim]")
