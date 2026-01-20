@@ -14,6 +14,7 @@ class WorkspaceManager:
         self.source_path = source_path # This can be a URL or a Path
         self.temp_dir = None
         self.file_map = []
+        self.actual_files = []
 
     def setup(self):
         """Extracts zip to a temp directory and maps the structure."""
@@ -30,6 +31,8 @@ class WorkspaceManager:
         exclude_dirs = {'.git', '__pycache__', 'node_modules', '.venv', 'env'}
         
         lines = []
+        self.actual_files = []
+        
         for root, dirs, files in os.walk(self.temp_dir):
             # Filter out excluded directories
             dirs[:] = [d for d in dirs if d not in exclude_dirs]
@@ -44,15 +47,25 @@ class WorkspaceManager:
             sub_indent = ' ' * 4 * (level + 1)
             for f in files:
                 lines.append(f"{sub_indent}📄 {f}")
+                rel_path = os.path.relpath(os.path.join(root, f), self.temp_dir)
+                self.actual_files.append(rel_path)
         
         self.file_map = "\n".join(lines)
 
     def get_context_for_llm(self):
         """Returns the file map and content of key manifest files."""
         context = f"Project Structure:\n{self.file_map}\n\n"
+
+        context += "=== FILES THAT ACTUALLY EXIST ===\n"
+        context += "\n".join(self.actual_files)
+        context += "\n\n"
         
         # Identify key files that define the tech stack
-        manifests = ['package.json', 'requirements.txt', 'go.mod', 'pom.xml', 'main.py', 'app.py', 'index.js']
+        manifests = ['package.json', 'requirements.txt', 'go.mod', 'pom.xml', 'main.py', 
+                     'app.py', 'index.js', 'pyproject.toml', 'setup.py']
+
+        found_manifests = []
+        missing_manifests = []
         
         context += "Key File Contents:\n"
         for root, _, files in os.walk(self.temp_dir):
@@ -61,6 +74,12 @@ class WorkspaceManager:
                     file_path = os.path.join(root, f)
                     with open(file_path, 'r', errors='ignore') as content:
                         context += f"--- {f} ---\n{content.read(1000)}\n" # Read first 1000 chars
+        
+        missing_manifests = [m for m in manifests if m not in found_manifests]
+        if missing_manifests:
+            context += "\n=== MISSING STANDARD FILES ===\n"
+            context += f"The following common files do NOT exist: {', '.join(missing_manifests)}\n"
+            context += "Do NOT attempt to COPY these files in the Dockerfile!\n\n"
         
         return context
 
@@ -94,7 +113,9 @@ class LLMArchitect:
             "2. Use 'distroless' or 'alpine' as the final runtime base for security.\n"
             "3. Optimize for layer caching (copy requirements/package files first).\n"
             "4. Ensure the entry point is correctly identified from the file list.\n"
-            "5. Return ONLY the content of the Dockerfile. No markdown code blocks, no explanations."
+            "5. CRITICAL: Only COPY files that are listed in 'FILES THAT ACTUALLY EXIST' section.\n"
+            "6. If requirements.txt is missing but pyproject.toml or setup.py exists, use 'pip install .' instead.\n"
+            "7. Return ONLY the content of the Dockerfile. No markdown code blocks, no explanations."
         )
 
         user_prompt = f"Analyze this project and create the most optimized Dockerfile possible:\n\n{project_context}"
@@ -121,27 +142,34 @@ class LLMArchitect:
     def heal_dockerfile(self, project_context, faulty_dockerfile, error_log):
         """Asks the LLM to fix a Dockerfile that failed to build."""
         system_prompt = (
-            "You are a Senior DevOps Engineer. A Dockerfile you generated failed to build.\n"
-            "Analyze the error log and the original Dockerfile, then provide a FIXED version.\n"
-            "STRICT: Return ONLY the fixed Dockerfile content."
+            "You are a Senior DevOps Engineer. A Dockerfile failed to build.\n"
+            "CRITICAL RULES:\n"
+            "1. Only COPY files that are explicitly listed in 'FILES THAT ACTUALLY EXIST' section.\n"
+            "2. If a file like requirements.txt is missing, do NOT attempt to use it.\n"
+            "3. Look for alternatives: pyproject.toml, setup.py, or use 'pip install .' for Python projects.\n"
+            "4. If the error mentions a missing file, CHECK if it's in the 'MISSING STANDARD FILES' list.\n"
+            "5. Return ONLY the fixed Dockerfile content. No explanations, no markdown."
         )
 
         user_prompt = (
-            f"PROJECT CONTEXT:\n{project_context}\n\n"
-            f"FAULTY DOCKERFILE:\n{faulty_dockerfile}\n\n"
-            f"ERROR LOG:\n{error_log}\n\n"
-            "Please fix the error (e.g., missing dependencies, wrong paths, or incorrect base image)."
+            f"=== PROJECT CONTEXT (SOURCE OF TRUTH) ===\n{project_context}\n\n"
+            f"=== FAULTY DOCKERFILE ===\n{faulty_dockerfile}\n\n"
+            f"=== DOCKER BUILD ERROR ===\n{error_log}\n\n"
+            "Analyze the error and fix the Dockerfile. Remember: only use files that ACTUALLY EXIST."
         )
 
-        response = completion(
-            model=self.model,
-            messages=[
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": user_prompt}
-            ],
-            temperature=0.1 
-        )
-        return self._clean_llm_output(response.choices[0].message.content)
+        try:
+            response = completion(
+                model=self.model,
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": user_prompt}
+                ],
+                temperature=0.1
+            )
+            return self._clean_llm_output(response.choices[0].message.content)
+        except Exception as e:
+            return f"Error healing Dockerfile: {str(e)}"
 
 ## Feature 2 / Task 1
 class DockerBuilder:
