@@ -83,11 +83,6 @@ def run_auto_docker(source, model_name, tag, skip_test):
             # --- SELF-HEALING START ---
             status.update("[bold yellow]Self-healing Dockerfile...")
             error_log = str(e)
-
-            # Rate limit protection - wait before calling LLM again
-            console.print("[dim]Rate limit protection: waiting 20 seconds...[/dim]")
-            import time
-            time.sleep(60)
             
             with open(dockerfile_path, "r") as f:
                 faulty_content = f.read()
@@ -127,10 +122,6 @@ def run_auto_docker(source, model_name, tag, skip_test):
                 runtime_log = str(runtime_err)
                 console.print(f"[yellow]Runtime failed:[/yellow] {runtime_log[:150]}")
                 console.print(f"[yellow]Attempting runtime healing...[/yellow]")
-
-                console.print("[dim]Rate limit protection: waiting 20 seconds...[/dim]")
-                import time
-                time.sleep(60)
                 
                 status.update("[bold yellow]Healing runtime configuration...")
                 
