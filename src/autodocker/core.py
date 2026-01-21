@@ -67,7 +67,7 @@ class WorkspaceManager:
         
         manifests = ['package.json', 'requirements.txt', 'go.mod', 'pom.xml', 
                     'main.py', 'app.py', 'index.js', 'pyproject.toml', 'setup.py',
-                    'README.md', 'README.rst', 'README.txt', 'LICENSE']  # NEW: Added README variants
+                    'README.md', 'README.rst', 'README.txt', 'LICENSE']
         
         found_manifests = []
         missing_manifests = []
