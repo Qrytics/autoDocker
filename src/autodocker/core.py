@@ -19,7 +19,7 @@ class WorkspaceManager:
         """Extracts zip to a temp directory and maps the structure."""
         self.temp_dir = tempfile.mkdtemp(prefix="auto_docker_")
         
-        with zipfile.ZipFile(self.zip_path, 'r') as zip_ref:
+        with zipfile.ZipFile(self.source_path, 'r') as zip_ref:
             zip_ref.extractall(self.temp_dir)
         
         self._build_file_map()
