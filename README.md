@@ -76,7 +76,7 @@ autodocker <source> [options]
 |---|---|
 | `source` | Path to a `.zip` file **or** a public GitHub URL |
 | `--tag TAG` | Docker image tag (default: `auto-docker-test:latest`) |
-| `--model MODEL` | LiteLLM model string (default: `groq/llama-3.1-8b-instant`) |
+| `--model MODEL` | LiteLLM model string (default: `$AUTODOCKER_MODEL` if set, else `groq/llama-3.1-8b-instant`) |
 | `--skip-test` | Skip the runtime stability check after building |
 
 ### Examples
