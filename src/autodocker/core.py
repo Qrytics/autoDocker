@@ -121,8 +121,7 @@ class LLMArchitect:
                 # Try to get the response
                 response = completion(
                     model=self.model,
-                    messages=messages,
-                    temperature=0.2
+                    messages=messages
                 )
                 return response
             except litellm.RateLimitError:
@@ -165,13 +164,10 @@ class LLMArchitect:
                     {"role": "user", "content": user_prompt}
         ]
 
-        try:
-            response = self._ask_llm_with_retry(messages)
-            
-            dockerfile_content = response.choices[0].message.content
-            return self._clean_llm_output(dockerfile_content)
-        except Exception as e:
-            return f"Error generating Dockerfile: {str(e)}"
+        response = self._ask_llm_with_retry(messages)
+
+        dockerfile_content = response.choices[0].message.content
+        return self._clean_llm_output(dockerfile_content)
 
     def _clean_llm_output(self, text):
         """Removes markdown backticks if the LLM ignores instructions."""
@@ -233,12 +229,9 @@ class LLMArchitect:
             {"role": "user", "content": user_prompt}
         ]
         
-        try:
-            response = self._ask_llm_with_retry(messages)
-            
-            return self._clean_llm_output(response.choices[0].message.content)
-        except Exception as e:
-            return f"Error healing Dockerfile: {str(e)}"
+        response = self._ask_llm_with_retry(messages)
+
+        return self._clean_llm_output(response.choices[0].message.content)
 
     def heal_runtime(self, project_context, current_dockerfile, runtime_error_log):
         """Asks the LLM to fix a Dockerfile that builds but fails at runtime."""
@@ -270,12 +263,9 @@ class LLMArchitect:
             {"role": "user", "content": user_prompt}
         ]
 
-        try:
-            response = self._ask_llm_with_retry(messages)
-            
-            return self._clean_llm_output(response.choices[0].message.content)
-        except Exception as e:
-            return f"Error healing runtime: {str(e)}"
+        response = self._ask_llm_with_retry(messages)
+
+        return self._clean_llm_output(response.choices[0].message.content)
         
 ## Feature 2 / Task 1
 class DockerBuilder:

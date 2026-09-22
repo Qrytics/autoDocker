@@ -45,14 +45,6 @@ def run_auto_docker(source, model_name, tag, skip_test):
             architect = LLMArchitect(model=model_name)
             dockerfile_content = architect.generate_dockerfile(context)
 
-            if "RateLimitError" in dockerfile_content or "AuthenticationError" in dockerfile_content:
-                console.print("[bold red]LLM Provider Error:[/bold red] You are being rate limited. Please wait 60 seconds.")
-                return None
-
-            if "AuthenticationError" in dockerfile_content or "API key not valid" in dockerfile_content:
-                console.print("[bold red]LLM Auth Failed:[/bold red] Check your GROQ_API_KEY.")
-                return None
-            
             # 4. Write the Dockerfile
             dockerfile_path = os.path.join(temp_path, "Dockerfile")
             with open(dockerfile_path, "w") as f:
@@ -89,13 +81,7 @@ def run_auto_docker(source, model_name, tag, skip_test):
                 
             try:
                 fixed_content = architect.heal_dockerfile(context, faulty_content, error_log)
-                
-                # Validate the fixed content
-                if not fixed_content or "Error" in fixed_content[:50]:
-                    console.print(f"[bold red]Healing produced invalid output:[/bold red] {fixed_content[:100]}")
-                    console.print(f"[dim]Workspace preserved at: {temp_path}[/dim]")
-                    return None
-                
+
                 with open(dockerfile_path, "w") as f:
                     f.write(fixed_content)
                 
@@ -134,12 +120,6 @@ def run_auto_docker(source, model_name, tag, skip_test):
                         current_dockerfile, 
                         runtime_log
                     )
-                    
-                    # Validate the fixed content
-                    if not fixed_runtime_content or "Error" in fixed_runtime_content[:50]:
-                        console.print(f"[bold red]Runtime healing produced invalid output:[/bold red] {fixed_runtime_content[:100]}")
-                        console.print(f"[dim]Workspace preserved at: {temp_path}[/dim]")
-                        return None
                     
                     # Write the fixed Dockerfile
                     with open(dockerfile_path, "w") as f:
@@ -206,8 +186,8 @@ def cli_entry():
 
     # Configuration options group
     group = parser.add_argument_group("Configuration Options")
-    group.add_argument("--model", default="groq/llama-3.1-8b-instant", 
-                  help="LiteLLM model (default: groq/llama-3.1-8b-instant)")
+    group.add_argument("--model", default=os.environ.get("AUTODOCKER_MODEL", "groq/llama-3.1-8b-instant"),
+                  help="LiteLLM model (default: $AUTODOCKER_MODEL if set, else groq/llama-3.1-8b-instant)")
     group.add_argument("--tag", default="auto-docker-test:latest", 
                       help="Docker image tag (default: auto-docker-test:latest)")
     group.add_argument("--skip-test", action="store_true", 
