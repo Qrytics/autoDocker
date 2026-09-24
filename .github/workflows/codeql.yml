@@ -1,0 +1,51 @@
+name: "CodeQL"
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+    branches: ["main"]
+  schedule:
+    # Weekly scan to pick up newly published CodeQL queries/CVE patterns
+    - cron: "26 7 * * 1"
+
+jobs:
+  analyze:
+    name: Analyze (${{ matrix.language }})
+    # GitHub-hosted runner; free for public repositories
+    runs-on: ubuntu-latest
+    permissions:
+      # Required to upload analysis results to the Security tab
+      security-events: write
+      # Required to fetch internal or private CodeQL packs
+      packages: read
+      contents: read
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # Python source (src/autodocker)
+          - language: python
+            build-mode: none
+          # Scans the GitHub Actions workflows themselves
+          - language: actions
+            build-mode: none
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v4
+        with:
+          languages: ${{ matrix.language }}
+          build-mode: ${{ matrix.build-mode }}
+          # security-extended adds lower-severity/precision security queries
+          # on top of the default suite; drop this line for defaults only.
+          queries: security-extended
+
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v4
+        with:
+          category: "/language:${{ matrix.language }}"
